@@ -2,6 +2,10 @@ const express = require("express");
 const bcrypt=require("bcrypt");
 const jwt=require("jsonwebtoken");
 const cors=require("cors");
+const fs=require("fs");
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads");
+}
 const multer=require("multer");
 const path=require("path");
 
@@ -98,7 +102,7 @@ app.post("/api/upload",verifyToken,upload.single("media"),(req,res)=>{
     if(!req.file){
         return res.status(400).json({message:"No file uploaded"});
     }
-    console.log("FILE RECEIVED:",req.file.filenamr);
+    console.log("FILE RECEIVED:",req.file.filename);
     res.json({
         message:"File uploaded successfully",
         filename:req.file.filename
@@ -114,11 +118,6 @@ app.get("/api/media",verifyToken,(req,res)=>{
         res.json({files:files})
     })
 })
-
-filename:(req,file,cb)=>{
-    const safeName=Date.now() +"-"+ file.originalname.replace(/\s+/g,"_");
-    cb(null,safeName);
-}
 
 app.delete("/api/delete/:filename",verifyToken,(req,res)=>{
     const filename =req.params.filename;
