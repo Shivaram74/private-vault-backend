@@ -28,7 +28,7 @@ const users=[
 ];
 //hash password
 (async()=>{
-    users[0].password=await bcrypt.hash("password1",10);
+    users[0].password=await bcrypt.hash("Password@1",10);
     users[1].password=await bcrypt.hash("password2",10);
 })();
 //token verify
