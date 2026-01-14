@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const fs = require("fs");
 const multer = require("multer");
+const messages = [];
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,7 +25,7 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 // ================= AUTH =================
-const JWT_SECRET = "private_vault_secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const users = [
   { id: 1, username: "user1", password: "" },
@@ -105,3 +107,39 @@ app.delete("/api/delete/:filename", verifyToken, (req, res) => {
 });
 
 app.listen(PORT, () => console.log("Server running on port", PORT));
+
+app.post("/api/message", verifyToken, (req, res) => {
+  const { text } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ message: "Message required" });
+  }
+
+  // determine receiver automatically
+  const to = req.user.username === "user1" ? "user2" : "user1";
+
+  const msg = {
+    from: req.user.username,
+    to,
+    text,
+    time: Date.now()
+  };
+
+  messages.push(msg);
+  res.json({ message: "Message sent" });
+});
+
+
+app.get("/api/messages", verifyToken, (req, res) => {
+  const user = req.user.username;
+
+  const chat = messages.filter(
+    m =>
+      (m.from === user && m.to !== user) ||
+      (m.to === user && m.from !== user)
+  );
+
+  res.json({ messages: chat });
+});
+
+
