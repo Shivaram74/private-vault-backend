@@ -116,6 +116,25 @@ app.post("/api/login", loginLimiter, async (req, res) => {
   res.json({ token });
 });
 
+app.post("/api/reset-password", verifyToken, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const match = await bcrypt.compare(oldPassword, user.password);
+  if (!match) {
+    return res.status(401).json({ message: "Old password incorrect" });
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  user.password = hashed;
+  await user.save();
+
+  res.json({ message: "Password changed successfully" });
+});
 //PRIVATE CHECK
 app.get("/api/private", verifyToken, (req, res) => {
   res.json({ message: `Welcome ${req.user.username}` });
@@ -184,25 +203,7 @@ app.get("/api/messages", verifyToken, async (req, res) => {
   res.json({ messages: msgs });
 });
 
-app.post("/api/reset-password", verifyToken, async (req, res) => {
-  const { oldPassword, newPassword } = req.body;
 
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  const match = await bcrypt.compare(oldPassword, user.password);
-  if (!match) {
-    return res.status(401).json({ message: "Old password incorrect" });
-  }
-
-  const hashed = await bcrypt.hash(newPassword, 10);
-  user.password = hashed;
-  await user.save();
-
-  res.json({ message: "Password changed successfully" });
-});
 // ================= START SERVER =================
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
