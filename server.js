@@ -9,6 +9,8 @@ const multer = require("multer");
 const rateLimit = require("express-rate-limit");
 const mongoose = require("mongoose");
 const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 // ================= APP =================
 const app = express();
@@ -45,6 +47,7 @@ mongoose.connect(process.env.MONGO_URI, {
 // ================= MODELS =================
 const User = require("./models/User");
 const Message = require("./models/Message");
+const Media = require("./models/media");
 
 // ================= JWT =================
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -71,26 +74,12 @@ if (!fs.existsSync("uploads")) {
   fs.mkdirSync("uploads");
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const allowed = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "video/mp4",
-      "video/webm"
-    ];
-    if (!allowed.includes(file.mimetype)) {
-      return cb(new Error("File type not allowed"));
-    }
-    cb(null, true);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "private-vault",
+    resource_type: "auto", // image + video
+    allowed_formats: ["jpg", "png", "jpeg", "gif", "mp4", "webm"]
   }
 });
 
@@ -154,26 +143,30 @@ app.get("/api/private", verifyToken, (req, res) => {
 });
 
 // UPLOAD MEDIA
-app.post("/api/upload", verifyToken, upload.single("media"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
 
-  res.json({
-    message: "File uploaded successfully",
-    filename: req.file.filename
+app.post("/api/upload", verifyToken, upload.single("media"), async (req, res) => {
+  const media = await Media.create({
+    url: req.file.path,
+    type: req.file.mimetype,
+    uploadedBy: req.user.username
   });
+
+  res.json(media);
+});
+
+
+res.json({
+  message: "File uploaded successfully",
+  url: req.file.path,       // Cloudinary public URL
+  type: req.file.mimetype
 });
 
 //GET MEDIA
-app.get("/api/media", verifyToken, (req, res) => {
-  fs.readdir("uploads", (err, files) => {
-    if (err) {
-      return res.status(500).json({ message: "Failed to load media" });
-    }
-    res.json({ files });
-  });
+app.get("/api/media", verifyToken, async (req, res) => {
+  const files = await Media.find().sort({ createdAt: -1 });
+  res.json({ files });
 });
+
 
 //DELETE MEDIA
 app.delete("/api/delete/:filename", verifyToken, (req, res) => {
