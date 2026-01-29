@@ -33,9 +33,14 @@ const loginLimiter = rateLimit({
 });
 
 // ================= DATABASE =================
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("Mongo error:", err));
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 5000
+})
+.then(() => console.log("MongoDB connected"))
+.catch(err => {
+  console.error("Mongo connection failed:", err.message);
+  process.exit(1);
+});
 
 // ================= MODELS =================
 const User = require("./models/User");
@@ -90,6 +95,14 @@ const upload = multer({
 });
 
 app.use("/uploads", express.static("uploads"));
+
+mongoose.connection.on("error", err => {
+  console.error("Mongo runtime error:", err);
+});
+
+mongoose.connection.once("open", () => {
+  console.log("MongoDB ready");
+});
 
 // ================= ROUTES =================
 
